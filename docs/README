@@ -1,0 +1,30 @@
+# Red Hat Installaltion
+
+## Partitions
+Create partitions with lvm. Separate the following directories:
+/boot
+/tmp
+/var/log
+/var/tmp
+/var/log/audit
+/home
+/
+/site
+
+## Networking
+### Bonding of interfaces
+
+
+## Repositories
+### Activate EPEL repo
+  epel_release=$(curl -sL http://download.fedoraproject.org/pub/epel/6/i386/ | grep epel-release | sed s/.*\"\>// | sed s/\<.*//)
+  cd /tmp
+  wget http://download.fedoraproject.org/pub/epel/6/i386/${epel_release}
+  sudo rpm -ivh ${epel_release}
+
+
+
+
+## Firewall
+
+### Shorewall

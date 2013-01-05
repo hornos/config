@@ -1,0 +1,13 @@
+#!/bin/bash
+gbn=$(basename $0)
+epel=$(curl -sL http://download.fedoraproject.org/pub/epel/6/i386/ | \
+       grep epel-release | sed s/.*rpm\".// | sed s/\<.*//)
+
+if test -z "${epel}" ; then
+  exit 1
+fi
+echo "[${gbn}] release: $epel"
+cd /tmp
+wget -nc http://download.fedoraproject.org/pub/epel/6/i386/${epel}
+sudo rpm -ivh "${epel}"
+if test -r "${epel}" ; then rm "${epel}"; fi
