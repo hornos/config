@@ -1,0 +1,4 @@
+#%PAM-1.0
+account required pam_listfile.so onerr=succeed item=user  sense=deny  file=/etc/restrict/sshd.deny.user
+account required pam_listfile.so onerr=succeed item=group sense=deny  file=/etc/restrict/sshd.deny.group
+account required pam_listfile.so onerr=fail    item=group sense=allow file=/etc/restrict/sshd.allow.group

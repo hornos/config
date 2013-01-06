@@ -1,0 +1,36 @@
+#
+# Shorewall version 4 - Interfaces File
+#
+# For information about entries in this file, type "man shorewall-interfaces"
+#
+# The manpage is also online at
+# http://www.shorewall.net/manpages/shorewall-interfaces.html
+#
+###############################################################################
+FORMAT 2
+###############################################################################
+#ZONE		INTERFACE		OPTIONS
+lan		eth0
+
+#
+# http://www.cyberciti.biz/faq/centos-rhel-shorewall-firewall-configuration-setup-howto-tutorial/
+# 
+# routefilter - Turn on kernel route filtering for this interface i.e. turn on anti-spoofing measurements.
+#
+# blacklist - Check packets arriving on this interface against the /etc/shorewall/blacklist file. 
+# The blacklist file is used to perform static blacklisting. 
+# You can blacklist by source address (IP or MAC), or by application.
+#
+# tcpflags - Packets arriving on this interface are checked for certain illegal combinations of TCP flags such 
+# as x mas or null or invalid packets. Packets found to have such a combination of flags are dropped (see the 
+# settings of TCP_FLAGS_DISPOSITION option in shorewall.conf) after having been logged in /var/log/messages 
+# file (see the setting of TCP_FLAGS_LOG_LEVEL in shorewall.conf).
+#
+# logmartians - Turn on kernel martian logging (logging of packets with impossible source addresses). It is 
+# strongly suggested that if you set routefilter on an interface that you also set logmartians.
+#
+# nosmurfs - Filter packets for smurfs (packets with a broadcast address as the source) i.e. 
+# turn on anti-smurf protection.
+#
+# wan		bond1	routefilter,blacklist,tcpflags,logmartians,nosmurfs
+wan		bond1

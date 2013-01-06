@@ -1,0 +1,116 @@
+#	$OpenBSD: sshd_config,v 1.80 2008/07/02 02:24:18 djm Exp $
+#
+# This is the sshd server system-wide configuration file.  See
+# sshd_config(5) for more information.
+#
+# This sshd was compiled with PATH=/usr/local/bin:/bin:/usr/bin
+#
+# The strategy used for options in the default sshd_config shipped with
+# OpenSSH is to specify options with their default value where
+# possible, but leave them commented.  Uncommented options change a
+# default value.
+
+
+# EAL4 like config
+# https://github.com/example42/puppet-modules/blob/master/ssh/manifests/eal4.pp
+# https://help.ubuntu.com/community/SSH/OpenSSH/Configuring
+# http://serverfault.com/questions/207799/how-to-dynamically-restrict-ssh-access-to-a-given-user
+# https://calomel.org/openssh.html
+# http://andrey.legaev.com/2012/09/sshguard-init-script-for-centos.html
+# http://blog.philippklaus.de/2010/02/analyse-illegal-ssh-login-attempts/
+# http://www.sshguard.net/
+# http://blog.famzah.net/2010/06/11/openssh-ciphers-performance-benchmark/
+
+# sudo ss -lnp | grep sshd
+# ps -A | grep sshd
+
+# change to a random high port
+Port 22
+
+# IPv4 only
+AddressFamily inet
+
+# hardcode interfaces
+ListenAddress 0.0.0.0
+
+Protocol 2
+
+# SyslogFacility AUTH
+SyslogFacility AUTHPRIV
+LogLevel VERBOSE
+# LogLevel DEBUG3
+
+# Banner /etc/ssh/banner
+
+LoginGraceTime 20
+MaxAuthTries 1
+MaxSessions 1
+
+# Set this to 'yes' to enable PAM authentication, account processing, 
+# and session processing. If this is enabled, PAM authentication will 
+# be allowed through the ChallengeResponseAuthentication and
+# PasswordAuthentication.  Depending on your PAM configuration,
+# PAM authentication via ChallengeResponseAuthentication may bypass
+# the setting of "PermitRootLogin without-password".
+# If you just want the PAM account and session checks to run without
+# PAM authentication, then enable this but set PasswordAuthentication
+# and ChallengeResponseAuthentication to 'no'.
+
+UsePAM yes
+
+# EAL4
+# ChallengeResponseAuthentication yes
+# PubkeyAuthentication no
+
+# pub key only
+PubkeyAuthentication yes
+ChallengeResponseAuthentication no
+
+PasswordAuthentication no
+
+PermitRootLogin no
+PermitEmptyPasswords no
+
+IgnoreRhosts yes
+RhostsRSAAuthentication no
+HostbasedAuthentication no
+
+RSAAuthentication no
+KerberosAuthentication no
+GSSAPIAuthentication no
+
+# http://blog.famzah.net/2010/06/11/openssh-ciphers-performance-benchmark/
+# https://calomel.org/openssh.html
+# EAL4
+# Ciphers 3des-cbc
+Ciphers 3des-cbc,aes256-ctr,aes192-ctr,aes128-ctr
+MACs hmac-md5,umac-64@openssh.com,hmac-ripemd160,hmac-md5-96
+
+AuthorizedKeysFile	.ssh/authorized_keys
+
+# Accept locale-related environment variables
+AcceptEnv LANG LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY LC_MESSAGES
+AcceptEnv LC_PAPER LC_NAME LC_ADDRESS LC_TELEPHONE LC_MEASUREMENT
+AcceptEnv LC_IDENTIFICATION LC_ALL LANGUAGE
+AcceptEnv XMODIFIERS
+
+AllowAgentForwarding no
+AllowTcpForwarding no
+X11Forwarding no
+
+TCPKeepAlive no
+# 5 min timeout
+ClientAliveInterval 10
+ClientAliveCountMax 30
+
+# PidFile /var/run/sshd.pid
+MaxStartups 256
+
+# override default of no subsystems
+Subsystem	sftp	/usr/libexec/openssh/sftp-server
+
+# Example of overriding settings on a per-user basis
+#Match User anoncvs
+#	X11Forwarding no
+#	AllowTcpForwarding no
+#	ForceCommand cvs server
