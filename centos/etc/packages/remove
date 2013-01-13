@@ -1,0 +1,11 @@
+sendmail
+krb5-workstation
+abrt-addon-kerneloops
+abrt-addon-python
+abrt-addon-ccpp
+abrt-plugin-rhtsupport
+abrt-plugin-logger
+abrt-plugin-sosreport
+abrt-cli
+abrt
+subscription-manager

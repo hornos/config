@@ -1,0 +1,10 @@
+#!/bin/bash
+gbn=$(basename $0)
+
+if test -z "$*" ; then exit 1; fi
+
+pkg=$1
+
+if ! test -r "${pkg}" ; then exit 1; fi
+
+cat "${pkg}" | egrep '^#'

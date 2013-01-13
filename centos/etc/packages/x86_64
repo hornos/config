@@ -1,0 +1,12 @@
+dmidecode
+glibc.i686
+glibc-devel.i686
+glibc-devel.x86_64
+libgcc.i686
+libgcc.x86_64
+libattr.i686
+cracklib.i686
+audit-libs.i686
+openssl.i686
+openssl-devel.i686
+libgcrypt.i686

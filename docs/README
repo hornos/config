@@ -1,57 +1,343 @@
-# Red Hat Installaltion
+This document describes security enhanced Linux installation.
+
+
+## Security policy
+
+### Mediawiki setup
+
+mediawiki, modrewrite, https
+
+### Track setup
+
+### RabbitMQ etc
+
+## Cluster simulation in Virtualbox
+https://blogs.oracle.com/fatbloke/entry/networking_in_virtualbox1
+
+## Kickstart
+
+## BIOS Security
+
+  - Set admin password for all machines.
+  - Set user password for top secret machines.
+  - Disable usb, and boot device other than disk.
+  - Switch off Hyper-threading for compute nodes.
+
+## IPMI
+  - Separated management network on lan. 
+TODO
+
+
+## Naming conventions
+https://computing.llnl.gov/linux/genders.html
+
+  - Based on SGI naming according to physical location.
+  - Label each node.
+
+  Gender role | Internal Name | SELinux policy
+    login     | loginN        | mls
+    admin     | adminN        | targeted<=
+    manager   | mgmntN        | mls
+    compute   | rLiMnN        | targeted<=
+
+    L: rack, M: blade, N: node
+
+    log       | logN          | mls
+    noc       | nocN          | mls
+
+### Network zones
+  - Consider security domains for ipsec and cipso.
+  - User login allowed on login nodes.
+  - Admin login allowed on separate mgmnt node eg. shell control box
+
+http://www.subnetmask.info/
+
+  FW Zone | A Range / 255.255.0.0 | Description
+  ext_n   | -                     | External network to login and manager
+  bmc_n   | 10.1.0.0              | Internal network for ipmi, GE overlap w/ sys
+  sys_n   | 10.2.0.0              | Internal network for system services, auth, log, ganglia, slurm etc.
+  mpi_n   | 10.3.0.0              | Internal network for mpi, IB (but use OFED for production)
+  nfs_n   | 10.4.0.0              | Internal network for nfs, IB or GE
 
 ## Partitions
-Create partitions with lvm. Separate the following directories:
-/boot
-/tmp
-/var/log
-/var/tmp
-/var/log/audit
-/home
-/
-/site
+https://www.centos.org/docs/5/html/5.2/Cluster_Logical_Volume_Manager/
+https://access.redhat.com/knowledge/docs/en-US/Red_Hat_Enterprise_Linux/6/html/Logical_Volume_Manager_Administration/index.html
+
+  - Create partitions with lvm.
+  - Consider full disk encryption.
+  - Consider GRUB password.
+
+  LVM Label   | Mount point
+  -           | /boot
+  vg_admin
+    lv_swap   | -
+    lv_tmp    | /tmp
+    lv_log    | /var/log
+    lv_audit  | /var/log/audit
+    lv_home   | /home
+    lv_root   | /
+    lv_opt    | /opt
+
+### Mount Options
+  - nodev,nosuid,noexec,xattr
+
+  Mount    | Options
+  /tmp     | nodev,nosuid,noexec
+  /dev/shm | nodev,nosuid,noexec
+
+  - Bind mount in /etc/fstab
+  /tmp /var/tmp none rw,noexec,nosuid,nodev,bind 0 0
+
+## Boot Loader options
+  - Disable kdump
+  - Disable usb: nosub
+
+### Kernel Modules
+  Edit /etc/modprobe.conf
+  install usb-storage /bin/true
+  install cramfs /bin/true
+  install freevxfs /bin/true
+  install jffs2 /bin/true
+  install hfs /bin/true
+  install hfsplus /bin/true
+  install squashfs /bin/true
+  install udf /bin/true
+
+  install dccp /bin/true
+  install sctp /bin/true
+  install rds /bin/true
+  install tipc /bin/true
+
+
+## Packages
+www.nsa.gov/ia/_files/os/redhat/rhel5-guide-i731.pdf
+
+### Check Red Hat PGP key
+  rpm -q --queryformat "%{SUMMARY}\n" gpg-pubkey
+  gpg --quiet --with-fingerprint /etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release
+
+### Misc
+List contents:
+  rpm -ql $(rpm -q PACKAGE)
+
+### Activate EPEL repo
+http://www.cyberciti.biz/faq/fedora-sl-centos-redhat6-enable-epel-repo/
+
+  su -l
+  yum install wget sudo
+  curl -s https://raw.github.com/hornos/config/master/centos/bin/activate_epel_repo | bash
+  yum update
+  yum install man man-pages mc git
+
+To check and uncompress a package.
+
+  rpm --import KEY
+  rpm --checksig RPM
+  rpm2cpio RPM | cpio -id
+
+### Update Repo Setup
+Integrate update process with AIDE.
+
+  chkconfig rhnsd off
+  yum check-update
+  yum update
+
+  chkconfig yum-updatesd off
+
+  - Run yum update from cron.
+  - Edit /etc/yum.conf [main] and /etc/yum.repos.d/*
+  gpgcheck=1
+
+  - RPM diff check
+  rpm -qVa
+
+
+## Initial settings
+http://www.server-world.info/en/note?os=CentOS_6&p=initial_conf&f=1
+http://www.server-world.info/en/note?os=CentOS_6&p=initial_conf&f=8
+
+Original files should be saved with .orig suffix.
+
+  - Add admin user
+  Admin user is your last resort. Please use strong password.
+  useradd -m -G wheel admin
+  passwd admin
+
+TODO: mls
+
+  - Only the wheel group can su. Edit /etc/pam.d/su
+  auth required pam_wheel.so use_uid
+
+  - Forward root mails to admin. Edit /etc/aliases
+  root: admin
+
+  (newaliases)
+
+  - Only the wheel group can sudo.
+  visudo
+  %wheel ALL=(ALL) ALL
+
+### Basic SSHD Setup
+http://www.softec.lu/site/DevelopersCorner/HowToRegenerateNewSsh
+
+  - Generate ssh key for admin on client.
+  cd $HOME/.ssh
+  ssh-keygen -f admin
+
+  Copy admin.pub to .ssh/authorized_keys on admin.
+  cd
+  chmod -R go-rwx .ssh
+
+  - Reset ssh server key.
+  cd /etc/ssh
+  sudo ssh-keygen -f ssh_host_rsa_key -b 2048 -N "" -t rsa
+  sudo ssh-keygen -f ssh_host_dsa_key -b 1024 -N "" -t dsa
+
+  - Distribute fingerprints in a secure channel to users.
+  ssh-keygen -lf ssh_host_rsa_key.pub
+  ssh-keygen -lf ssh_host_dsa_key.pub
+
+Normal ssh service should be used only for the wheel group and from 
+authorized networks. User login ssh is controlled by xinetd. 
+See the SSHD Setup section.
+
+### Install Additional Packages
+  cd
+  git clone git://github.com/hornos/config.git
+  cd config/centos
+
+
+## SELinux
+  yum install selinux-policy-strict selinux-policy-mls
+
+  - Edit /etc/selinux/config
+  SELINUX=enforcing
+  SELINUXTYPE=targeted
+
+TODO: mls
+
+  - Relabel filesystems
+  touch /.autorelabel
+
+  - Boot options for relabeling
+  enforcing=0 single autorelabel
+
+  - Uninstall uneccessary packages
+  chkconfig setroubleshoot off
+  yum erase setroubleshoot
+
+  - Check for context errors in audit logs
+  ausearch -m AVC,USER_AVC -sv no
+
+  - Restore security context
+  restorecon -v FILE
+
+  - Generate TE for policy modules
+  ausearch -m AVC -sv no -ts recent | audit2allow [-M localmodule]
+  semodule -i localmodule.pp
+
+## Networking
+### Disable ipv6
+  - Edit /etc/sysctl.conf
+  net.ipv6.conf.all.disable_ipv6 = 1
+  net.ipv6.conf.default.disable_ipv6 = 1
+
+### TCP Wrapper
+  - Check for application support:
+  ldd /path/to/daemon | grep libwrap.so
+
+  - Edit /etc/hosts.allow
+  service: ALL
+  ALL: localhost
+
+  - Edit /etc/hosts.deny
+  ALL: ALL
+
+### IPsec
+  yum install openswan
+
 
 ## Logging
 
 ### rsyslog
-Setup high prec time format in /etc/rsyslog.conf
-Based on: http://www.rsyslog.com/doc/rsyslog_conf_templates.html
+Custom configuration should go to separate conf files in /etc/rsyslog.d
+
+http://www.rsyslog.com/doc/rsyslog_conf_templates.html
+
+  yum install rsyslog
+  chkconfig syslog off
+  chkconfig rsyslog on
+
+Setup high precision time format in /etc/rsyslog.conf
 
   $ActionFileDefaultTemplate RSYSLOG_FileFormat
 
-### Host-based logging
+### Host-based logging for loghost
+http://wiki.rsyslog.com/index.php/DailyLogRotation
+Admin machines are loghost for the cluster on sys_n network.
 
-  $template MonthlyPerHostLogs,"/var/log/syslog/%$YEAR%/%$MONTH%/%HOSTNAME%/messages.log"
+  - Edit /etc/rsyslog.d/loghost.conf
+  $template MonthlyPerHostLogs,"/var/log/loghost/%$YEAR%/%$MONTH%/%$DAY%/%HOSTNAME%/messages.log"
   *.* -?MonthlyPerHostLogs
 
-### Log rotate with cron ? logrotated
+  service rsyslog restart
 
-### Firewall logging
-Filter in /etc/rsyslog.conf
-Based on: http://www.rsyslog.com/doc/rsyslog_conf_filter.html
+TODO: separate logs from local and networkc
+TODO: logrotate
 
+### Shorewall logging
+http://www.rsyslog.com/doc/rsyslog_conf_filter.html
+
+  - Edit /etc/rsyslog.d/shorewall.conf
   :msg, contains, "Shorewall" /var/log/firewall
 
-### TODO: LogAnalyzer
+  - Edit /etc/logrotate.d/syslog
+  /var/log/firewall
 
-## Repositories
+  service rsyslog restart
 
-### Activate EPEL repo
-Based on: http://www.cyberciti.biz/faq/fedora-sl-centos-redhat6-enable-epel-repo/
+### Send logs
+TODO: encrypted transfer
+TODO: on-disk queue
 
-  curl -s https://raw.github.com/hornos/config/master/centos/bin/activate_epel_repo | bash
+  - Edit /etc/rsyslog.d/send.conf
+  *.* @@loghost.example.com
 
+### Accept logs
+  - Edit /etc/rsyslog.d/accept.conf
+  $ModLoad imtcp.so
+  $InputTCPServerRun 514
+
+### logwatch
+http://www.stellarcore.net/logwatch/tabs/docs/HOWTO-Customize-LogWatch.html
+
+  yum install logwatch
+  logwatch --print
+  TODO: firewall & cluster logs
+
+### Log.io
+http://logio.org/
+
+  git clone git://github.com/hornos/Log.io.git
+  cd Log.io
+  npm install
+
+TODO: LogAnalyzer Graylog Logstash Scribe
 
 ## Firewall
+  - Check rules:
+  iptables -vnL --line-numbers
 
 ### Shorewall
 Based on: http://www.cyberciti.biz/faq/centos-rhel-shorewall-firewall-configuration-setup-howto-tutorial/
 
   yum install shorewall
 
+  - Edit ...
+
   shorewall check
   chkconfig iptables off
-  service shorewall start | stop | restart | status
+  service shorewall start
   chkconfig shorewall on
 
   shorewall show
@@ -65,6 +351,111 @@ Based on: http://www.cyberciti.biz/faq/centos-rhel-shorewall-firewall-configurat
   nmap -p 20-22 $FW
 
 
+## NTP
+http://www.cyberciti.biz/faq/rhel-fedora-centos-configure-ntp-client-server/
+
+The admin nodes should be used as an internal NTP server for the cluster.
+
+  yum install ntp
+
+  - Edit /etc/ntpd.conf
+
+  service ntpd start
+  chkconfig ntpd on
+
+### ntp crypto
+
+### tlsdate
+https://github.com/ioerror/tlsdate
+
+
+## DNS
+
+
+## Random number generator and entropy check
+http://www.howtoforge.com/helping-the-random-number-generator-to-gain-enough-entropy-with-rng-tools-debian-lenny
+
+  yum install rng-tools
+
+  - Edit /etc/sysconfig/
+
+    EXTRAOPTIONS="-r /dev/urandom"
+
+    service rngd start
+    chkconfig rngd on
+
+
+## Cluster Boot order
+### Startup
+  1. Manager nodes
+  2. Admin nodes
+  3. Login nodes
+  4. Compute nodes
+
+### Shutdown
+  1. Compute nodes
+  2. Login nodes
+  3. Admin nodes
+  4. Manager nodes
+
+
+## UPS
+UPS should be connected to admin nodes.
+
+
+
+### EAL4
+  
+  wget ftp://ftp.sunet.se/pub/Linux/distributions/scientific/6.3/x86_64/updates/fastbugs/cc-eal4-config-rhel62-0.33-1.el6_2.noarch.rpm
+
+## Groups & Users
+
+### LDAP
+
+  directory entry: DN
+          + attributes: RDN <- objectclass defs in schema 
+  
+  LDIF: ascii entry format
+
+  yum install openldap openldap-clients openldap-servers pam_ldap nss-pam-ldapd
+
+LDAP should be used for user authentication on admin nodes.
+
+  pam ldap timeout
+
+### Central LDAP on noc
+
+
+## Modules
+http://pkgs.repoforge.org/environment-modules/
+
+  yum install tcl.x86_64 libX11.x86_64
+  rpm -ivh http://pkgs.repoforge.org/environment-modules/environment-modules-3.2.8a-2.el6.rfx.x86_64.rpm
+
+The module system is based on ESZR and UNITE.
+https://github.com/hornos/eszr
+http://apps.fz-juelich.de/unite/index.php/UNITE_Introduction
+
+### NUCE - NIIF Unified Computing Environment
+
+  yum install git genders
+
+Nodeattr syntax:
+  nuce node -q compute
+
+Comment all entry in /usr/share/Modules/init/.modulespath
+Edit $HOME/.bash_profile or .profile
+
+  module purge
+  module use /site/nuce/mod
+  module load nuce/global
+  module load etc/...
+
+  source $NUCE_ROOT/etc/alias
+
+  TODO: complete for modules
+
+
 ## SSH
 
 ### Ciphers
@@ -76,7 +467,9 @@ Based on: http://www.cyberciti.biz/faq/centos-rhel-shorewall-firewall-configurat
   ssh -c Cipher
 
 ### PAM
-Based on: http://www.cyberciti.biz/tips/howto-deny-allow-linux-user-group-login.html
+http://www.cyberciti.biz/tips/howto-deny-allow-linux-user-group-login.html
+http://www.cyberciti.biz/tips/linux-unix-bsd-openssh-server-best-practices.html
+
 Edit /etc/pam.d/sshd
 
   account required pam_listfile.so onerr=succeed item=user  sense=deny  file=/etc/restrict/sshd.deny.user
@@ -84,26 +477,125 @@ Edit /etc/pam.d/sshd
   account required pam_listfile.so onerr=fail    item=group sense=allow file=/etc/restrict/sshd.allow.group
 
 
+### TCP wrappers
+
+### sftp chroot
+http://www.debian-administration.org/articles/590
+
+### Mosh
+http://mosh.mit.edu/
+
+
 ## Su & Sudo
+
+### Admin users
 
 ## Disable user password change
 Use unknown random passwords.
 
+### Lock a system user
+  usermod -L ACCT
+  usermod -s /sbin/nologin ACCT
+
 ## PAM
 
-### limits
+### Password quality
+  - Edit /etc/pam.d/system-auth
+  password requisite pam_cracklib.so try_first_pass retry=3
+  password requisite pam_passwdqc.so min=disabled,disabled,16,12,8
+
+### Lockout of failed attempts
+  - Edit /etc/pam.d/system-auth
+  auth required pam_tally2.so deny=5 onerr=fail unlock_time=900
+  account required pam_tally2.so
+
+  /sbin/pam_tally2 --user username --reset
+
+### Deny a service
+  auth requisite pam_deny.so
+
+
+
+### Limits
+  - Edit /etc/security/limits.conf
+  * hard core 0
+
+  - Edit /etc/sysctl.conf
+  fs.suid_dumpable = 0
+
 
 ## Users & Groups
-### defaults
-### skel
-### LDAP
-### umask
+### libuser.conf and login.defs
 
+
+### skel
+Unified skel
+
+### LDAP
+  Edit /etc/nsswitch.conf
+
+
+### Umask
+  - Edit /etc/sysconfig/init
+  umask 027
+  PROMPT=no
+
+  - Edit /etc/login.defs
+  umask 007
+
+### Shell timeout and lock
+  - Edit /etc/profile.d/tmout.sh
+  TMOUT=900
+  readonly TMOUT
+  export TMOUT
+
+  yum install vlock
+
+### Prelink
+  - Edit /etc/sysconfig/prelink:
+  PRELINKING=no
+  /usr/sbin/prelink -ua
 
 ### Enable & Disable (nologin)
+
+## Files
+  - Sticky bits
+  find PART -xdev -type d \( -perm -0002 -a ! -perm -1000 \) -print
+  
+  - World-writable
+  find PART -xdev -type f -perm -0002 -print
+  
+  - SUID
+  find PART -xdev \( -perm -4000 -o -perm -2000 \) -type f -print
+  
+  - Find and Repair Unowned Files
+  find PART -xdev \( -nouser -o -nogroup \) -print
+
+  - Verify that All World-Writable Directories Have Proper Ownership
+  find PART -xdev -type d -perm -0002 -uid +500 -print
+
+## Services
+  chkconfig --list | grep '3:on'
+
+## Auditd
+
+## IDS: AIDE
+
+## Apparmour
 
 ## Quota
 
 ## Monitoring
 
 ## Scheduler
+
+
+## Access Control for Files
+### Security levels
+http://www.isode.com/whitepapers/security-labels-clearance.html
+
+  s0  - public
+  s1  - unclassified
+  s2  - restricted
+  s3  - secret
+  s4  - top secret
