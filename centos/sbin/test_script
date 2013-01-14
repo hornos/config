@@ -2,4 +2,5 @@
 
 echo "PWD: $PWD"
 echo "basename: $(basename $0)"
+echo "source: $BASH_SOURCE"
 echo "args: $*"
