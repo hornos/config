@@ -1,0 +1,5 @@
+#!/bin/bash
+
+echo "PWD: $PWD"
+echo "basename: $(basename $0)"
+echo "args: $*"

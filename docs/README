@@ -115,12 +115,11 @@ https://access.redhat.com/knowledge/docs/en-US/Red_Hat_Enterprise_Linux/6/html/L
   reboot
 
 ## Bootstrap
-  cat >> $HOME/.bash_profile <<EOF
+  - Append to $HOME/.bash_profile
   GITBASH=https://raw.github.com/hornos/config/master/centos
   function gitbash() {
-    if [ -z "$*" ]; then exit 1; fi; curl -s \$GITBASH/\$* | bash
+    if [ -z "$*" ]; then exit 1; fi; c=$1; shift; curl -s $GITBASH/$c | bash $*
   }
-  EOF
 
   source $HOME/.bash_profile
 
@@ -130,9 +129,7 @@ www.nsa.gov/ia/_files/os/redhat/rhel5-guide-i731.pdf
 ### Check Red Hat PGP key
   rpm -q --queryformat "%{SUMMARY}\n" gpg-pubkey
   for i in /etc/pki/rpm-gpg/RPM-GPG-KEY-*; do gpg --quiet --with-fingerprint $i;done
-
 OR
-
   gitbash sbin/check_package_keys 
 
   - List package content
@@ -145,37 +142,20 @@ http://www.cyberciti.biz/faq/fedora-sl-centos-redhat6-enable-epel-repo/
   curl -s https://raw.github.com/hornos/config/master/centos/sbin/activate_epel_repo | bash
   yum update
   yum install man man-pages mc git sudo
-
+  yum install selinux-policy-strict selinux-policy-mls policycoreutils-python
 OR
-
-  curl -s https://raw.github.com/hornos/config/master/centos/sbin/01_initial_update | bash
+  gitbash sbin/01_initial_update
 
   - Check GPG repo keys
   for i in /etc/yum.conf /etc/yum.repos.d/*; do echo -n "$i ";cat $i|grep gpgcheck|wc -l;done
-
 OR
-
-  curl -s https://raw.github.com/hornos/config/master/centos/sbin/check_repo_keys | bash
+  gitbash check_repo_keys
   
   - RPM diff check
   rpm -qVa
+OR
+  gitbash sbin/check_rpm_diff
 
-
-### Update Repo Setup
-Integrate update process with AIDE.
-
-  chkconfig rhnsd off
-  yum check-update
-  yum update
-
-  chkconfig yum-updatesd off
-
-  - Run yum update from cron.
-
-  - Check and uncompress a package
-  rpm --import KEY
-  rpm --checksig RPM
-  rpm2cpio RPM | cpio -id
 
 ## Initial settings
 http://www.server-world.info/en/note?os=CentOS_6&p=initial_conf&f=1
@@ -187,6 +167,11 @@ Original files should be saved with .orig suffix.
   Admin user is your last resort. Please use strong password.
   useradd -m -G wheel admin
   passwd admin
+  semanage login -a -s staff_u admin
+
+OR
+
+  gitbash sbin/
 
   - Only the wheel group can su. Edit /etc/pam.d/su
   auth required pam_wheel.so use_uid
@@ -230,9 +215,23 @@ See the SSHD Setup section.
   cd config/centos
 
 
+### Update Repo Setup
+Integrate update process with AIDE.
+
+  chkconfig rhnsd off
+  yum check-update
+  yum update
+
+  chkconfig yum-updatesd off
+
+  - Run yum update from cron.
+
+  - Check and uncompress a package
+  rpm --import KEY
+  rpm --checksig RPM
+  rpm2cpio RPM | cpio -id
+
 ## SELinux
-  yum install selinux-policy-strict selinux-policy-mls
-  yum install policycoreutils-python
 
   - Edit /etc/selinux/config
   SELINUX=enforcing
