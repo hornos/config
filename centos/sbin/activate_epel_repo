@@ -9,5 +9,5 @@ fi
 echo "[${gbn}] release: $epel"
 cd /tmp
 wget -nc http://download.fedoraproject.org/pub/epel/6/i386/${epel}
-sudo rpm -ivh "${epel}"
+rpm -ivh "${epel}"
 if test -r "${epel}" ; then rm "${epel}"; fi

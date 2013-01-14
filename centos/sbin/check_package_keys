@@ -1,0 +1,4 @@
+#!/bin/bash
+
+rpm -q --queryformat "%{SUMMARY}\n" gpg-pubkey
+for i in /etc/pki/rpm-gpg/RPM-GPG-KEY-*; do gpg --quiet --with-fingerprint $i;done

@@ -1,0 +1,6 @@
+#!/bin/bash
+
+yum install wget
+curl -s https://raw.github.com/hornos/config/master/centos/sbin/activate_epel_repo | bash
+yum update
+yum install man man-pages mc git sudo

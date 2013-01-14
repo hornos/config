@@ -34,16 +34,18 @@ https://computing.llnl.gov/linux/genders.html
   - Based on SGI naming according to physical location.
   - Label each node.
 
-  Gender role | Internal Name | SELinux policy
-    login     | loginN        | mls
-    admin     | adminN        | targeted<=
-    manager   | mgmntN        | mls
-    compute   | rLiMnN        | targeted<=
+  - SELinux policy is enforced/targeted<=
+
+  Gender role | Internal Name
+    login     | loginN
+    admin     | adminN
+    manager   | mgmntN
+    compute   | rLiMnN
 
     L: rack, M: blade, N: node
 
-    log       | logN          | mls
-    noc       | nocN          | mls
+    log       | logN
+    noc       | nocN
 
 ### Network zones
   - Consider security domains for ipsec and cipso.
@@ -58,6 +60,9 @@ http://www.subnetmask.info/
   sys_n   | 10.2.0.0              | Internal network for system services, auth, log, ganglia, slurm etc.
   mpi_n   | 10.3.0.0              | Internal network for mpi, IB (but use OFED for production)
   nfs_n   | 10.4.0.0              | Internal network for nfs, IB or GE
+
+  login: ext_n, bmc_n, sys_n, nfs_n
+  admin: bmc_n, sys_n, nfs_n, mpi_n
 
 ## Partitions
 https://www.centos.org/docs/5/html/5.2/Cluster_Logical_Volume_Manager/
@@ -93,7 +98,7 @@ https://access.redhat.com/knowledge/docs/en-US/Red_Hat_Enterprise_Linux/6/html/L
   - Disable usb: nosub
 
 ### Kernel Modules
-  Edit /etc/modprobe.conf
+  Edit /etc/modprobe.d/disabled.conf
   install usb-storage /bin/true
   install cramfs /bin/true
   install freevxfs /bin/true
@@ -102,38 +107,59 @@ https://access.redhat.com/knowledge/docs/en-US/Red_Hat_Enterprise_Linux/6/html/L
   install hfsplus /bin/true
   install squashfs /bin/true
   install udf /bin/true
-
   install dccp /bin/true
   install sctp /bin/true
   install rds /bin/true
   install tipc /bin/true
 
+  reboot
+
+## Bootstrap
+  cat >> $HOME/.bash_profile <<EOF
+  GITBASH=https://raw.github.com/hornos/config/master/centos
+  function gitbash() {
+    if [ -z "$*" ]; then exit 1; fi; curl -s \$GITBASH/\$* | bash
+  }
+  EOF
+
+  source $HOME/.bash_profile
 
 ## Packages
 www.nsa.gov/ia/_files/os/redhat/rhel5-guide-i731.pdf
 
 ### Check Red Hat PGP key
   rpm -q --queryformat "%{SUMMARY}\n" gpg-pubkey
-  gpg --quiet --with-fingerprint /etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release
+  for i in /etc/pki/rpm-gpg/RPM-GPG-KEY-*; do gpg --quiet --with-fingerprint $i;done
 
-### Misc
-List contents:
+OR
+
+  gitbash sbin/check_package_keys 
+
+  - List package content
   rpm -ql $(rpm -q PACKAGE)
 
 ### Activate EPEL repo
 http://www.cyberciti.biz/faq/fedora-sl-centos-redhat6-enable-epel-repo/
 
-  su -l
-  yum install wget sudo
-  curl -s https://raw.github.com/hornos/config/master/centos/bin/activate_epel_repo | bash
+  yum install wget
+  curl -s https://raw.github.com/hornos/config/master/centos/sbin/activate_epel_repo | bash
   yum update
-  yum install man man-pages mc git
+  yum install man man-pages mc git sudo
 
-To check and uncompress a package.
+OR
 
-  rpm --import KEY
-  rpm --checksig RPM
-  rpm2cpio RPM | cpio -id
+  curl -s https://raw.github.com/hornos/config/master/centos/sbin/01_initial_update | bash
+
+  - Check GPG repo keys
+  for i in /etc/yum.conf /etc/yum.repos.d/*; do echo -n "$i ";cat $i|grep gpgcheck|wc -l;done
+
+OR
+
+  curl -s https://raw.github.com/hornos/config/master/centos/sbin/check_repo_keys | bash
+  
+  - RPM diff check
+  rpm -qVa
+
 
 ### Update Repo Setup
 Integrate update process with AIDE.
@@ -145,12 +171,11 @@ Integrate update process with AIDE.
   chkconfig yum-updatesd off
 
   - Run yum update from cron.
-  - Edit /etc/yum.conf [main] and /etc/yum.repos.d/*
-  gpgcheck=1
 
-  - RPM diff check
-  rpm -qVa
-
+  - Check and uncompress a package
+  rpm --import KEY
+  rpm --checksig RPM
+  rpm2cpio RPM | cpio -id
 
 ## Initial settings
 http://www.server-world.info/en/note?os=CentOS_6&p=initial_conf&f=1
@@ -162,8 +187,6 @@ Original files should be saved with .orig suffix.
   Admin user is your last resort. Please use strong password.
   useradd -m -G wheel admin
   passwd admin
-
-TODO: mls
 
   - Only the wheel group can su. Edit /etc/pam.d/su
   auth required pam_wheel.so use_uid
@@ -209,15 +232,19 @@ See the SSHD Setup section.
 
 ## SELinux
   yum install selinux-policy-strict selinux-policy-mls
+  yum install policycoreutils-python
 
   - Edit /etc/selinux/config
   SELINUX=enforcing
   SELINUXTYPE=targeted
 
-TODO: mls
+  - Translation service
+  chkconfig mcstrans on
+  service mcstrans start
 
   - Relabel filesystems
   touch /.autorelabel
+  reboot
 
   - Boot options for relabeling
   enforcing=0 single autorelabel
@@ -235,6 +262,11 @@ TODO: mls
   - Generate TE for policy modules
   ausearch -m AVC -sv no -ts recent | audit2allow [-M localmodule]
   semodule -i localmodule.pp
+
+  - Set default mapping
+  semanage login -m -S targeted -s "user_u" -r s0 __default__
+  semanage fcontext -a -t type "/home(/.*)?
+  restorecon -R -v /home
 
 ## Networking
 ### Disable ipv6
@@ -285,16 +317,23 @@ Admin machines are loghost for the cluster on sys_n network.
 TODO: separate logs from local and networkc
 TODO: logrotate
 
-### Shorewall logging
+### Extra logs
 http://www.rsyslog.com/doc/rsyslog_conf_filter.html
 
   - Edit /etc/rsyslog.d/shorewall.conf
   :msg, contains, "Shorewall" /var/log/firewall
 
+  - Edit /etc/rsyslog.d/avc.conf
+  :msg, contains, "avc:" /var/log/avc.log
+
   - Edit /etc/logrotate.d/syslog
   /var/log/firewall
+  /var/log/avc.log
 
   service rsyslog restart
+
+
+
 
 ### Send logs
 TODO: encrypted transfer
@@ -590,12 +629,123 @@ Unified skel
 ## Scheduler
 
 
-## Access Control for Files
-### Security levels
-http://www.isode.com/whitepapers/security-labels-clearance.html
+## SELinux Access Control
+MLS is a Mandatory Access Control (MAC) security scheme. Processes are Subjects (clearances); files, sockets and other passive operating system entities Objects (classifications). Both are labeled with Security Levels (SLs):
+  - Sensitivity: hierarchical attribute
+  - Categories: set of non hierarchical attribute
 
-  s0  - public
-  s1  - unclassified
-  s2  - restricted
-  s3  - secret
-  s4  - top secret
+SELinux uses Bell-LaPadula (BLP), with Type Enforcement (TE) for integrity.
+
+SELinux contexts follow the SELinux user:role:type:level syntax.
+
+Type Enforcement then separates each domain.
+
+### Security levels
+https://access.redhat.com/knowledge/docs/en-US/Red_Hat_Enterprise_Linux/6/html/Security-Enhanced_Linux/chap-Security-Enhanced_Linux-Introduction.html
+http://www.isode.com/whitepapers/security-labels-clearance.html
+http://james-morris.livejournal.com/5020.html
+http://james-morris.livejournal.com/8228.html
+http://james-morris.livejournal.com/5583.html
+https://fedoraproject.org/wiki/SELinux/FedoraMLSHowto
+http://www.gentoo.org/proj/en/hardened/selinux/selinux-handbook.xml
+
+DAC 1st SELinux 2nd
+
+  yum install selinux-policy-mls
+
+  - Edit /etc/selinux/config
+  SELINUX=enforcing
+  SELINUXTYPE=mls
+
+  - Edit /etc/selinux/mls/setrans.conf
+  s0  - Public
+  s1  - Unclassified
+  s2  - Restricted
+  s3  - Secret
+  s4  - Top Secret
+
+  touch /.autorelabel
+
+  - Check user mappings
+  semanage login -l
+
+  - Check status
+  sestatus
+
+  - Switch mode
+  setenforce 0/1
+
+  - List booleans
+  semanage boolean -l
+
+  - Set booleans
+  getsebool boolean-name
+  setsebool boolean-name x
+
+Make permanent
+  setsebool -P boolean-name on
+
+  - Change file context permanently
+  semanage fcontext -a -t type file
+  semanage fcontext -d file
+
+  - Recursive change
+  semanage fcontext -a -t type "/dir(/.*)?
+  restorecon -R -v /dir
+
+  - Mount
+  mount -o context="..."
+        -o defcontext="..."
+
+  - Check context match
+  matchpathcon -V path
+
+  - Tar
+  yum install star
+
+  tar --xattrs --selinux
+  star -xattr H=exustar
+
+### Monitoring
+	avcstat
+	seinfo
+
+  - Number of confined processes
+  seinfo -adomain -x | wc -l
+
+  - Number of unconfined
+  seinfo -aunconfined_domain_type -x | wc -l
+
+  - Number of permissive
+  seinfo --permissive -x | wc -l
+
+  - Search
+  sesearch --role_allow -t httpd_sys_content_t
+  sesearch --allow | wc -l
+  sesearch --dontaudit | wc -l
+
+  - Logging
+  grep "SELinux is preventing" /var/log/messages
+  grep "denied" /var/log/audit/audit.log
+
+### MLS
+  useradd -Z user_u john
+  semanage login --modify --seuser user_u --range s2:c100 john
+  chcon -R -l s2:c100 /home/john
+
+### Polyinstantiated Directories /tmp /var/tmp
+  - Edit /etc/security/namespace.conf
+  /tmp     /tmp-inst/            level      root,adm
+  /var/tmp /var/tmp/tmp-inst/    level      root,adm
+  $HOME    $HOME/$USER.inst/     level
+
+### Network allow
+  semanage port -a -t http_port_t -p tcp 9876
+
+### Aliases
+alias chtype="chcon -t"
+alias sebools="semanage boolean -l"
+alias selogins="semanage login -l"
+alias seusers="semanage user -l"
+alias seports="semanage port -l"
+
