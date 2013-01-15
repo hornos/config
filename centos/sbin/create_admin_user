@@ -1,0 +1,8 @@
+#!/bin/bash
+
+if [ -z "$*" ] ; then exit 1; fi
+user=$1
+useradd -m -G wheel $user
+passwd $user
+semanage login -a -s unconfined_u $user
+restorecon -r /home/$user

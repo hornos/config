@@ -1,0 +1,11 @@
+#!/bin/bash
+
+cd /etc/ssh
+
+ssh-keygen -f ssh_host_rsa_key -b 2048 -N "" -t rsa
+ssh-keygen -f ssh_host_dsa_key -b 1024 -N "" -t dsa
+
+echo ""
+ssh-keygen -lf ssh_host_rsa_key.pub
+echo ""
+ssh-keygen -lf ssh_host_dsa_key.pub

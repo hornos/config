@@ -1,0 +1,7 @@
+#!/bin/bash
+
+semanage login -m -S targeted -s "user_u" -r s0 __default__
+chkconfig mcstrans on
+service mcstrans start
+touch /.autorelabel
+reboot

@@ -1,10 +1,16 @@
 #!/bin/bash
-gbn=$(basename $0)
+gbn=$(basename $BASH_SOURCE)
+gdn=$(dirname $BASH_SOURCE)
 
-if test -z "$*" ; then exit 1; fi
+if [ -z "$*" ]; then exit 1; fi
 
 pkg=$1
+pkg="${gdn}/../etc/packages/${pkg}"
 
-if ! test -r "${pkg}" ; then exit 1; fi
+if ! [ -r "${pkg}" ]; then exit 1; fi
 
-cat "${pkg}" | egrep '^#'
+pkg=$(cat "${pkg}" | grep -v -e "^#")
+
+if [ -z "${pkg}" ]; then exit 1; fi
+
+yum install $pkg
