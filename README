@@ -9,6 +9,11 @@ mediawiki, modrewrite, https
 
 ### Track setup
 
+### Communication
+  - Use jitsi for secure voip and chat
+  - Use Adium + OTR for chat
+  - Use Retroshare for secure P2P
+
 ### RabbitMQ etc
 
 ## Cluster simulation in Virtualbox
@@ -18,10 +23,11 @@ https://blogs.oracle.com/fatbloke/entry/networking_in_virtualbox1
 
 ## BIOS Security
 
-  - Set admin password for all machines.
+### Admin password
   - Set user password for top secret machines.
   - Disable usb, and boot device other than disk.
   - Switch off Hyper-threading for compute nodes.
+
 
 ## IPMI
   - Separated management network on lan. 
@@ -135,9 +141,30 @@ OR
   - List package content
   rpm -ql $(rpm -q PACKAGE)
 
+### Add DVD repo
+http://www.cyberciti.biz/tips/redhat-centos-fedora-linux-setup-repo.html
+
+  mkdir /mnt/cdrom
+  mount /dev/cdrom /mnt/cdrom
+
+  - Edit /etc/yum.repos.d/dvd.repo
+  [DVD Repository]
+  baseurl=file:///mnt/cdrom/Server
+  enabled=1
+
 ### Activate EPEL repo
 http://www.cyberciti.biz/faq/fedora-sl-centos-redhat6-enable-epel-repo/
+http://www.tecmint.com/how-to-enable-epel-repository-for-rhel-centos-6-5/
 
+#### RH 5.X
+  wget http://download.fedoraproject.org/pub/epel/5/x86_64/epel-release-5-4.noarch.rpm
+  rpm -ivh epel-release-5-4.noarch.rpm
+  yum install git
+
+  - List package groups
+  yum grouplist
+
+#### Centos 6
   yum install wget
   curl -s https://raw.github.com/hornos/config/master/centos/sbin/activate_epel_repo | bash
   yum update
@@ -156,6 +183,18 @@ OR
 OR
   gitbash sbin/check_rpm_diff
 
+### Activate Globus repo
+http://www.globus.org/toolkit/docs/5.2/5.2.3/admin/install/#q-bininst
+
+#### RH 5.X
+  wget http://www.globus.org/ftppub/gt5/5.2/5.2.3/installers/repo/Globus-5.2.stable-config.redhat-5Server-1.noarch.rpm
+  rpm -ivh Globus-5.2.stable-config.redhat-5Server-1.noarch.rpm
+
+  - Install packages
+  yum grouplist
+  yum groupinstall globus-data-management-client globus-data-management-server
+  yum groupinstall globus-gram5 globus-gridftp globus-gsi
+  yum groupinstall globus-resource-management-client globus-resource-management-server
 
 ## Initial settings
 http://www.server-world.info/en/note?os=CentOS_6&p=initial_conf&f=1
@@ -381,7 +420,7 @@ http://logio.org/
   cd Log.io
   npm install
 
-TODO: LogAnalyzer Graylog Logstash Scribe
+TODO: Graylog Logstash Scribe
 
 
 ## UPS
@@ -430,52 +469,6 @@ TODO: ssh syslog ntp nfs ldap
   3. Admin nodes
   4. Manager nodes
 
-
-
-## SELinux
-
-  - Boot options for relabeling
-  enforcing=0 single autorelabel
-
-  - Uninstall uneccessary packages
-  chkconfig setroubleshoot off
-  yum erase setroubleshoot
-
-  - Check for context errors in audit logs
-  ausearch -m AVC,USER_AVC -sv no
-
-  - Restore security context
-  restorecon -v FILE
-
-  - Generate TE for policy modules
-  ausearch -m AVC -sv no -ts recent | audit2allow [-M localmodule]
-  semodule -i localmodule.pp
-
-  - Set default mapping
-  semanage login -m -S targeted -s "user_u" -r s0 __default__
-  semanage fcontext -a -t type "/home(/.*)?
-  restorecon -R -v /home
-
-
-### Update Repo Setup
-Integrate update process with AIDE.
-
-  chkconfig rhnsd off
-  yum check-update
-  yum update
-
-  chkconfig yum-updatesd off
-
-  - Run yum update from cron.
-
-  - Check and uncompress a package
-  rpm --import KEY
-  rpm --checksig RPM
-  rpm2cpio RPM | cpio -id
-
-### EAL4
-  
-  wget ftp://ftp.sunet.se/pub/Linux/distributions/scientific/6.3/x86_64/updates/fastbugs/cc-eal4-config-rhel62-0.33-1.el6_2.noarch.rpm
 
 ## Groups & Users
 
@@ -658,6 +651,47 @@ Unified skel
 
 ## Scheduler
 
+
+## SELinux
+
+  - Boot options for relabeling
+  enforcing=0 single autorelabel
+
+  - Uninstall uneccessary packages
+  chkconfig setroubleshoot off
+  yum erase setroubleshoot
+
+  - Check for context errors in audit logs
+  ausearch -m AVC,USER_AVC -sv no
+
+  - Restore security context
+  restorecon -v FILE
+
+  - Generate TE for policy modules
+  ausearch -m AVC -sv no -ts recent | audit2allow [-M localmodule]
+  semodule -i localmodule.pp
+
+  - Set default mapping
+  semanage login -m -S targeted -s "user_u" -r s0 __default__
+  semanage fcontext -a -t type "/home(/.*)?
+  restorecon -R -v /home
+
+
+### Update Repo Setup
+Integrate update process with AIDE.
+
+  chkconfig rhnsd off
+  yum check-update
+  yum update
+
+  chkconfig yum-updatesd off
+
+  - Run yum update from cron.
+
+  - Check and uncompress a package
+  rpm --import KEY
+  rpm --checksig RPM
+  rpm2cpio RPM | cpio -id
 
 ## SELinux Access Control
 MLS is a Mandatory Access Control (MAC) security scheme. Processes are Subjects (clearances); files, sockets and other passive operating system entities Objects (classifications). Both are labeled with Security Levels (SLs):
