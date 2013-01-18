@@ -162,6 +162,7 @@ Load the DVD or attach the iso to the virtual drive.
 
   - Edit /etc/yum.repos.d/dvd.repo
   [DVD]
+  name=DVD
   baseurl=file:///mnt/cdrom/Server
   enabled=1
 
