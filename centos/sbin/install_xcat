@@ -1,0 +1,7 @@
+#!/bin/bash
+cd /etc/yum.repos.d
+wget http://xcat.sourceforge.net/yum/xcat-core/xCAT-core.repo
+wget http://xcat.sourceforge.net/yum/xcat-dep/rh6/x86_64/xCAT-dep.repo
+yum clean metadata
+yum install xCAT
+yum install net-snmp net-snmp-utils.x86_64
