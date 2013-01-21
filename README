@@ -26,8 +26,14 @@ https://blogs.oracle.com/fatbloke/entry/networking_in_virtualbox1
 ### Admin password
   - Set user password for top secret machines.
   - Disable usb, and boot device other than disk.
-  - Switch off Hyper-threading for compute nodes.
 
+
+### Hyper-threading
+  - Check hyper-threading and CPUs
+  cpumap
+
+  - Disable script
+  http://superuser.com/questions/368620/should-i-disable-hyperthreading
 
 ## BMC and IPMI
   - Separated management network on lan. 
@@ -631,9 +637,26 @@ Use unknown random passwords.
 ### skel
 Unified skel
 
+
+
 ### LDAP
   Edit /etc/nsswitch.conf
 
+#### SLES
+  - Self-signed ldap problem. Edit /etc/openldap/ldap.conf
+  TLS_REQCERT allow
+
+  - Edit /etc/ldap.conf
+  tls_checkpeer no
+
+### NFS home
+  - Edit /etc/auto.master
+  /net    -hosts  -fstype=nfs,tcp,mountproto=tcp,soft,intr,rsize=8192,wsize=8192,nolock
+
+  chkconfig autofs on
+  service autofs start
+
+  mount | grep ^admin| awk '{print $1,$2,$3}'
 
 ### Umask
   - Edit /etc/sysconfig/init
@@ -687,7 +710,31 @@ Unified skel
 
 ## Monitoring
 
-## Scheduler
+### Ganglia
+
+#### SLES
+  - Install packages on clients
+  zypper in ganglia-gmond ganglia-gmond-python
+
+  chkconfig gmond on
+  service gmond restart
+
+## Slurm
+  - Edit /etc/sysconfig/slurm
+  ulimit -l unlimited
+  ulimit -v unlimited
+  ulimit -n 16384
+
+  scontrol update NodeName=... State=DOWN Reason=hung_completing
+
+## Kernel
+### SLES
+  - Install kernel source
+  zypper in kernel-source
+
+  - Make a copy of the source and cd into it
+  cp -vi /boot/config-$(uname -r) .config
+  make menuconfig
 
 
 ## SELinux
