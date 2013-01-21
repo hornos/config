@@ -43,7 +43,7 @@ function noht() {
         shift
         while [ "$1" ]
         do
-          echo "Disabling Logical CPU $1 .."
+          echo "Disabling Logical CPU: $1"
           echo 0 > /sys/devices/system/cpu/cpu$1/online
           shift
         done
